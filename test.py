@@ -7,6 +7,7 @@ import torchvision.models as models
 import torch.nn as nn
 from torchinfo import summary
 import torch.optim as optim
+from pytorch_lightning.loggers import WandbLogger
 
 
 # cdm = cifar_datamodule()
@@ -55,8 +56,11 @@ class LitCifarClassifier(L.LightningModule):
 
 
 model = LitCifarClassifier(num_classes=10)
-trainer = pl.Trainer(max_epochs=10)
+wandb_logger = WandbLogger( project="Learnin_lightnin",name="dev_run")
+trainer = pl.Trainer(max_epochs=10,logger=wandb_logger)
 cifardm = cifar_datamodule()
 trainer.fit(model, datamodule=cifardm)
+
+
 
 
