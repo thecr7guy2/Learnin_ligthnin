@@ -9,9 +9,13 @@ class cifar_datamodule(pl.LightningDataModule):
     def __init__(self,data_dir:str= "./data") :
         super().__init__()
         self.data_dir = data_dir
-        self.common_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        # self.train_transform = ########
-        # self.val_transform = ########
+        self.common_transform = transforms.Compose([transforms.ToTensor(),
+                                                    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+        self.train_transform = transforms.Compose([transforms.RandomCrop(32, padding=4),
+                                                   transforms.RandomHorizontalFlip(),
+                                                   transforms.ToTensor(),
+                                                   transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+
 
     def prepare_data(self) -> None:
         datasets.CIFAR10(self.data_dir,train=True,download=True)
@@ -19,19 +23,19 @@ class cifar_datamodule(pl.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            train_dataset  = datasets.CIFAR10(self.data_dir,train=True,transform=self.common_transform)
-            self.train,self.val = random_split(train_dataset,[45000, 5000], generator=torch.Generator().manual_seed(42))
+            # train_dataset  = datasets.CIFAR10(self.data_dir,train=True,transform=self.common_transform)
+            # self.train,self.val = random_split(train_dataset,[45000, 5000], generator=torch.Generator().manual_seed(42))
 
         # ###### If different transformations need to be applied for train and valid:####################
-        # train_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.train_transform)
-        # val_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.val_transform)  # Notice we still use train=True
+            train_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.train_transform)
+            val_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.common_transform)  # Notice we still use train=True
 
-        # # Get the indices for the split
-        # train_indices, val_indices = random_split(range(50000), [45000, 5000], generator=torch.Generator().manual_seed(42))
+            # Get the indices for the split
+            train_indices, val_indices = random_split(range(50000), [45000, 5000], generator=torch.Generator().manual_seed(42))
 
-        # # Use Subset to create datasets based on indices and transformations
-        # self.train = torch.utils.data.Subset(train_dataset, train_indices)
-        # self.val = torch.utils.data.Subset(val_dataset, val_indices)
+            # Use Subset to create datasets based on indices and transformations
+            self.train = torch.utils.data.Subset(train_dataset, train_indices)
+            self.val = torch.utils.data.Subset(val_dataset, val_indices)
         ########################################################################################
 
         if stage == "test":
@@ -53,3 +57,8 @@ class cifar_datamodule(pl.LightningDataModule):
 
 
 
+cdm = cifar_datamodule()
+cdm.prepare_data()
+cdm.setup(stage='fit')
+trainloader = cdm.train_dataloader()
+print(next(iter(trainloader))[0].shape)

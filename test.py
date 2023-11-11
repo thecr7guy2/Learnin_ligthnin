@@ -8,7 +8,7 @@ import torch.nn as nn
 from torchinfo import summary
 import torch.optim as optim
 from pytorch_lightning.loggers import WandbLogger
-
+import torchmetrics
 
 # cdm = cifar_datamodule()
 # cdm.prepare_data()
@@ -38,25 +38,31 @@ class LitCifarClassifier(L.LightningModule):
         self.num_classes = num_classes
         self.model = CustomResNet18(self.num_classes)
         self.criterion = nn.CrossEntropyLoss()
+        self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=10)
     def training_step(self, batch, batch_idx):
         inputs,targets = batch
         outputs = self.model(inputs)
         loss = self.criterion(outputs, targets)
         self.log("train_loss",loss,on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        return loss
+        return loss 
     def validation_step(self, batch, batch_idx):
         # this is the validation loop
         val_inputs,val_targets = batch
         val_outputs = self.model(val_inputs)
         val_loss = self.criterion(val_outputs,val_targets)
+        preds = torch.argmax(val_outputs, dim=1)
+        acc = self.accuracy(preds,val_targets)
         self.log("val_loss", val_loss,on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log("val_acc",acc)
+        return preds
+
     def configure_optimizers(self) -> OptimizerLRScheduler:
         optimizer = optim.SGD(self.parameters(), lr=0.1,momentum=0.9, weight_decay=5e-4)
         return optimizer    
 
 
 model = LitCifarClassifier(num_classes=10)
-wandb_logger = WandbLogger( project="Learnin_lightnin",name="dev_run")
+wandb_logger = WandbLogger( project="Learnin_lightnin",name="dev_run1",save_dir="runs/")
 trainer = pl.Trainer(max_epochs=10,logger=wandb_logger)
 cifardm = cifar_datamodule()
 trainer.fit(model, datamodule=cifardm)
