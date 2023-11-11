@@ -1,4 +1,3 @@
-from lightning.pytorch.utilities.types import OptimizerLRScheduler
 import torch
 import lightning.pytorch as pl
 from dataloader import cifar_datamodule
@@ -7,7 +6,6 @@ import torchvision.models as models
 import torch.nn as nn
 from torchinfo import summary
 import torch.optim as optim
-from pytorch_lightning.loggers import WandbLogger
 import torchmetrics
 
 # cdm = cifar_datamodule()
@@ -18,14 +16,36 @@ import torchmetrics
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+# Define your hyperparameters
+hyperparams = {
+    'learning_rate':1e-3,
+    'weight_decay': 1e-5,
+    'batch_size': 128
+}
+
 # Lets use Resnet-18 as the primary model
 class CustomResNet18(nn.Module):
     def __init__(self, num_classes):
         super().__init__()
         self.resnet18 = models.resnet18(weights=None)
         self.resnet18.fc = nn.Linear(self.resnet18.fc.in_features, num_classes)
+        self.initialize_weights()
     def forward(self,x):
         return self.resnet18(x)
+    def initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, std=1e-3)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
 
 # num_classes = 10 
 # model = CustomResNet18(num_classes=num_classes)
@@ -39,6 +59,7 @@ class LitCifarClassifier(L.LightningModule):
         self.model = CustomResNet18(self.num_classes)
         self.criterion = nn.CrossEntropyLoss()
         self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=10)
+
     def training_step(self, batch, batch_idx):
         inputs,targets = batch
         outputs = self.model(inputs)
@@ -46,7 +67,6 @@ class LitCifarClassifier(L.LightningModule):
         self.log("train_loss",loss,on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss 
     def validation_step(self, batch, batch_idx):
-        # this is the validation loop
         val_inputs,val_targets = batch
         val_outputs = self.model(val_inputs)
         val_loss = self.criterion(val_outputs,val_targets)
@@ -55,17 +75,28 @@ class LitCifarClassifier(L.LightningModule):
         self.log("val_loss", val_loss,on_step=True, on_epoch=True, prog_bar=True, logger=True)
         self.log("val_acc",acc)
         return preds
-
-    def configure_optimizers(self) -> OptimizerLRScheduler:
-        optimizer = optim.SGD(self.parameters(), lr=0.1,momentum=0.9, weight_decay=5e-4)
-        return optimizer    
+    def test_step(self, batch, batch_idx):
+        test_inputs,test_targets = batch
+        test_outputs = self.model(test_inputs)
+        preds = torch.argmax(test_outputs, dim=1)
+        acc = self.accuracy(preds,test_targets)
+        self.log("test_acc",acc)
+        return preds
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=hyperparams['learning_rate'], weight_decay=hyperparams['weight_decay'])
+        return optimizer 
 
 
 model = LitCifarClassifier(num_classes=10)
-wandb_logger = WandbLogger( project="Learnin_lightnin",name="dev_run1",save_dir="runs/")
-trainer = pl.Trainer(max_epochs=10,logger=wandb_logger)
+wandb_logger = pl.loggers.WandbLogger( project="Learnin_lightnin",name="dev_run3",save_dir="runs")
+wandb_logger.log_hyperparams(hyperparams)
+checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_acc", mode="max")
+trainer = pl.Trainer(max_epochs=10,logger=wandb_logger,callbacks=[checkpoint_callback])
 cifardm = cifar_datamodule()
 trainer.fit(model, datamodule=cifardm)
+trainer.test(model,ckpt_path="best",datamodule=cifardm)
+
+
 
 
 

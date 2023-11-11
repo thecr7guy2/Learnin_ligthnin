@@ -44,21 +44,21 @@ class cifar_datamodule(pl.LightningDataModule):
             self.predict = datasets.CIFAR10(self.data_dir,train=False,transform=self.common_transform)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        return DataLoader(self.train,batch_size=16,shuffle=True,num_workers=4)
+        return DataLoader(self.train,batch_size=128,shuffle=True,num_workers=2)
     
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(self.val,batch_size=16,shuffle=False,num_workers=4)
+        return DataLoader(self.val,batch_size=100,shuffle=False,num_workers=2)
     
     def test_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(self.test,batch_size=16,shuffle=False,num_workers=4)
+        return DataLoader(self.test,batch_size=100,shuffle=False,num_workers=4)
     
     def predict_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(self.predict,batch_size=16,shuffle=False,num_workers=4)
+        return DataLoader(self.predict,batch_size=100,shuffle=False,num_workers=4)
 
 
 
-cdm = cifar_datamodule()
-cdm.prepare_data()
-cdm.setup(stage='fit')
-trainloader = cdm.train_dataloader()
-print(next(iter(trainloader))[0].shape)
+# cdm = cifar_datamodule()
+# cdm.prepare_data()
+# cdm.setup(stage='fit')
+# trainloader = cdm.train_dataloader()
+# print(next(iter(trainloader))[0].shape)
