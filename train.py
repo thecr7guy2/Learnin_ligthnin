@@ -8,22 +8,18 @@ from torchinfo import summary
 import torch.optim as optim
 import torchmetrics
 import wandb
-import random
+import argparse
 
-cdm = cifar_datamodule()
-cdm.prepare_data()
-cdm.setup(stage='fit')
-valloader = cdm.val_dataloader()
-set_val_samples = next(iter(valloader))
 
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 # Define your hyperparameters
 hyperparams = {
     'learning_rate':1e-3,
-    'weight_decay': 1e-5,
-    'batch_size': 128
+    'batch_size': 128,
+    "epochs":10,
+    'optimizer': 'adam',
 }
+
 
 # Lets use Resnet-18 as the primary model
 class CustomResNet18(nn.Module):
@@ -55,13 +51,14 @@ class CustomResNet18(nn.Module):
 # summary(model, input_size=(16, 3, 32, 32))
 
 class LitCifarClassifier(L.LightningModule):
-    def __init__(self,num_classes,samples) -> None:
+    def __init__(self,num_classes,samples,hyper_parameters) -> None:
         super().__init__()
         self.num_classes = num_classes
         self.model = CustomResNet18(self.num_classes)
         self.criterion = nn.CrossEntropyLoss()
         self.accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=self.num_classes)
         self.val_images,self.val_labels = samples
+        self.hyper_parameters=hyper_parameters
     def training_step(self, batch, batch_idx):
         inputs,targets = batch
         outputs = self.model(inputs)
@@ -97,21 +94,42 @@ class LitCifarClassifier(L.LightningModule):
         self.log("test_acc",acc)
         return preds
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=hyperparams['learning_rate'], weight_decay=hyperparams['weight_decay'])
+        optimizer_name = self.hyper_parameters['optimizer'].lower()
+        if optimizer_name == 'adam':
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hyper_parameters['learning_rate'])
+        elif optimizer_name == 'sgd':
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=self.hyper_parameters['learning_rate'], momentum=0.9)
         return optimizer 
 
 
-model = LitCifarClassifier(num_classes=10,samples=set_val_samples)
-wandb_logger = pl.loggers.WandbLogger( project="Learnin_lightnin",name="dev_run5",save_dir="runs")
-wandb_logger.log_hyperparams(hyperparams)
-checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_acc", mode="max")
-trainer = pl.Trainer(max_epochs=10,logger=wandb_logger,callbacks=[checkpoint_callback])
-cifardm = cifar_datamodule()
-trainer.fit(model, datamodule=cifardm)
-trainer.test(model,ckpt_path="best",datamodule=cifardm)
+def Littrain(hparams):
+    #####################################################
+    cdm = cifar_datamodule(batch_size=hparams['batch_size'])
+    cdm.prepare_data()
+    cdm.setup(stage='fit')
+    valloader = cdm.val_dataloader()
+    set_val_samples = next(iter(valloader))
+    ######################################################
+    wandb_logger = pl.loggers.WandbLogger(save_dir="runs")
+    wandb_logger.log_hyperparams(hparams)
+    model = LitCifarClassifier(num_classes=10, samples=set_val_samples,hyper_parameters=hparams)
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(monitor="val_acc", mode="max")
+    trainer = pl.Trainer(
+        max_epochs=hparams["epochs"], 
+        logger=wandb_logger, 
+        callbacks=[checkpoint_callback]
+    )
+    cifardm = cifar_datamodule(batch_size=hparams['batch_size'])
+    trainer.fit(model, datamodule=cifardm)
+    trainer.test(model,ckpt_path="best",datamodule=cifardm)
 
 
-wandb.finish()
+def main():
+    wandb.init(project="Learnin_lightnin")
+    hparams = wandb.config
+    hparams.setdefaults(hyperparams)
+    Littrain(hparams)
+    wandb.finish()
 
-
-
+if __name__ == "__main__":
+    main()

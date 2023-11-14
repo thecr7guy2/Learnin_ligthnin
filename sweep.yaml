@@ -1,0 +1,16 @@
+program: train.py
+name: Intiial_sweep
+method: grid
+metric:
+  name: val_acc
+  goal: minimize
+parameters:
+  learning_rate:
+    values: [0.1,0.01,0.001,0.0001,0.00001]
+  batch_size:
+    values: [8,16,32,64]
+  epochs:
+    value: 11
+  optimizer:
+    values: ["adam", "sgd"]
+  

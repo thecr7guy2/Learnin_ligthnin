@@ -6,7 +6,7 @@ from torch.utils.data import random_split, DataLoader
 
 
 class cifar_datamodule(pl.LightningDataModule):
-    def __init__(self,data_dir:str= "./data") :
+    def __init__(self,data_dir:str= "./data",batch_size=64) :
         super().__init__()
         self.data_dir = data_dir
         self.common_transform = transforms.Compose([transforms.ToTensor(),
@@ -15,6 +15,7 @@ class cifar_datamodule(pl.LightningDataModule):
                                                    transforms.RandomHorizontalFlip(),
                                                    transforms.ToTensor(),
                                                    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+        self.batch_size = batch_size
 
 
     def prepare_data(self) -> None:
@@ -44,16 +45,16 @@ class cifar_datamodule(pl.LightningDataModule):
             self.predict = datasets.CIFAR10(self.data_dir,train=False,transform=self.common_transform)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
-        return DataLoader(self.train,batch_size=128,shuffle=True,num_workers=2)
+        return DataLoader(self.train,batch_size=self.batch_size,shuffle=True,num_workers=2)
     
     def val_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(self.val,batch_size=100,shuffle=False,num_workers=2)
+        return DataLoader(self.val,batch_size=self.batch_size,shuffle=False,num_workers=2)
     
     def test_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(self.test,batch_size=100,shuffle=False,num_workers=4)
+        return DataLoader(self.test,batch_size=self.batch_size,shuffle=False,num_workers=4)
     
     def predict_dataloader(self) -> EVAL_DATALOADERS:
-        return DataLoader(self.predict,batch_size=100,shuffle=False,num_workers=4)
+        return DataLoader(self.predict,batch_size=self.batch_size,shuffle=False,num_workers=4)
 
 
 
