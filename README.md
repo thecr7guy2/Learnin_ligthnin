@@ -36,6 +36,9 @@ wandb sweep sweep.yaml
 wandb agent [SWEEP_ID]
 ```
 
+## Additional Resources
+- Wandb report link: [report](https://wandb.ai/thecr7guy3/Learnin_lightnin/reports/Image-classification-using-PyTorch-Lightning-and-Wandb--Vmlldzo1OTY4MDM1)
+
 ## Contributing
 Contributions to this project are welcome. Please fork the repository and open a pull request with your changes.
 
