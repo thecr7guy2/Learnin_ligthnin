@@ -14,7 +14,7 @@ import argparse
 
 # Define your hyperparameters
 hyperparams = {
-    'learning_rate':1e-3,
+    'learning_rate':0.001,
     'batch_size': 128,
     "epochs":10,
     'optimizer': 'adam',
@@ -125,7 +125,7 @@ def Littrain(hparams):
 
 
 def main():
-    wandb.init(project="Learnin_lightnin")
+    wandb.init(project="Learnin_lightnin",name="baseline")
     hparams = wandb.config
     hparams.setdefaults(hyperparams)
     Littrain(hparams)

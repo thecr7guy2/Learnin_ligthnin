@@ -28,7 +28,7 @@ class cifar_datamodule(pl.LightningDataModule):
             # self.train,self.val = random_split(train_dataset,[45000, 5000], generator=torch.Generator().manual_seed(42))
 
         # ###### If different transformations need to be applied for train and valid:####################
-            train_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.train_transform)
+            train_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.train_transform)  ## change this 
             val_dataset = datasets.CIFAR10(self.data_dir, train=True, transform=self.common_transform)  # Notice we still use train=True
 
             # Get the indices for the split
